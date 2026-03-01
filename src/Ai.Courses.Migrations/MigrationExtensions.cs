@@ -16,8 +16,6 @@ public static class MigrationExtensions
     /// </summary>
     public static async Task RunMigrationsAsync(this WebApplication app)
     {
-        if (!app.Environment.IsDevelopment()) return;
-
         using var scope = app.Services.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<DbContextUser>>();
 

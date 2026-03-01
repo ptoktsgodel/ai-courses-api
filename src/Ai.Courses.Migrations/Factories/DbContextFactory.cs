@@ -20,10 +20,10 @@ public abstract class DbContextFactory<TContext> : IDesignTimeDbContextFactory<T
             .Build();
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? "Data Source=ai-courses.db";
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found in configuration.");
 
         var optionsBuilder = new DbContextOptionsBuilder<TContext>();
-        optionsBuilder.UseSqlite(connectionString);
+        optionsBuilder.UseSqlServer(connectionString);
 
         return CreateContext(optionsBuilder.Options);
     }

@@ -15,7 +15,7 @@ public static class DependencyInjection
         string connectionString)
     {
         services.AddDbContext<DbContextUser>(options =>
-            options.UseSqlite(
+            options.UseSqlServer(
                 connectionString,
                 b => b.MigrationsAssembly("Ai.Courses.Migrations")));
 

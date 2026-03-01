@@ -1,6 +1,0 @@
-@Ai.Courses.Api_HostAddress = http://localhost:5255
-
-GET {{Ai.Courses.Api_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
