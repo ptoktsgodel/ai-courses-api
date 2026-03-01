@@ -32,8 +32,10 @@ services:
       - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: >-
+      ConnectionStrings__UsersConnection: >-
         Server=sqlserver,1433;Database=users;User Id=sa;Password=Adminpassword1!;TrustServerCertificate=True
+      ConnectionStrings__PaymentsConnection: >-
+        Server=sqlserver,1433;Database=payments;User Id=sa;Password=Adminpassword1!;TrustServerCertificate=True
     depends_on:
       sqlserver:
         condition: service_healthy

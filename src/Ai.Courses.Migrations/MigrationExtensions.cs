@@ -3,17 +3,12 @@ using Ai.Courses.Migrations.Seeders;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Ai.Courses.Migrations;
 
 public static class MigrationExtensions
 {
-    /// <summary>
-    /// Applies pending EF Core migrations and seeds default data.
-    /// Runs only in the Development environment.
-    /// </summary>
     public static async Task RunMigrationsAsync(this WebApplication app)
     {
         using var scope = app.Services.CreateScope();
@@ -21,11 +16,17 @@ public static class MigrationExtensions
 
         try
         {
-            var context = scope.ServiceProvider.GetRequiredService<DbContextUser>();
-            await context.Database.MigrateAsync();
-            logger.LogInformation("Database migrations applied successfully.");
+            var userContext = scope.ServiceProvider.GetRequiredService<DbContextUser>();
+            await userContext.Database.MigrateAsync();
+            logger.LogInformation("User database migrations applied successfully.");
 
             await DefaultAdminSeeder.SeedAsync(scope.ServiceProvider);
+
+            var paymentsContext = scope.ServiceProvider.GetRequiredService<DbContextPayment>();
+            await paymentsContext.Database.MigrateAsync();
+            logger.LogInformation("Payments database migrations applied successfully.");
+
+            await PaymentsSeeder.SeedAsync(scope.ServiceProvider);
         }
         catch (Exception ex)
         {

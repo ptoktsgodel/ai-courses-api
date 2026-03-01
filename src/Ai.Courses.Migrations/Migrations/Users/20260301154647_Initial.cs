@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Ai.Courses.Migrations.Migrations
+namespace Ai.Courses.Migrations.Migrations.Users
 {
     /// <inheritdoc />
     public partial class Initial : Migration

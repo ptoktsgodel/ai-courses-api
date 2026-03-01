@@ -1,6 +1,8 @@
 using Ai.Courses.Api.Endpoints.Auth;
+using Ai.Courses.Api.Endpoints.Items;
 using Ai.Courses.Api.Extensions;
 using Ai.Courses.Data;
+using Ai.Courses.Data.Contexts;
 using Ai.Courses.Logic.Commands.Login;
 using Ai.Courses.Logic.Mappings;
 using Ai.Courses.Logic.Validators;
@@ -10,13 +12,11 @@ using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
+// Data — registers UserDbContext and PaymentDbContext
+builder.Services.AddDataConfiguration(builder.Configuration);
 
-// Data — registers UserDbContext for Identity and app usage
-builder.Services.AddDataConfiguration(connectionString);
-
-// Migrations — registers DbContextUser with MigrationsAssembly for runtime migration execution
-builder.Services.AddMigrationsConfiguration(connectionString);
+// Migrations — registers DbContextUser and DbContextPayment with MigrationsAssembly
+builder.Services.AddMigrationsConfiguration(builder.Configuration);
 
 // Auth (Identity + Bearer token)
 builder.Services.AddAuthConfiguration();
@@ -32,7 +32,7 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(LoginCommandHandler).Assembly));
 
 // Mapping - AutoMapper
-builder.Services.AddAutoMapper(cfg => cfg.AddProfile<UserProfile>());
+builder.Services.AddAutoMapper(cfg => cfg.AddMaps(typeof(UserProfile).Assembly));
 
 // Validation - FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<LoginValidator>();
@@ -50,5 +50,6 @@ await app.RunMigrationsAsync();
 
 // Endpoints
 app.MapAuthEndpoints();
+app.MapItemEndpoints();
 
 app.Run();
