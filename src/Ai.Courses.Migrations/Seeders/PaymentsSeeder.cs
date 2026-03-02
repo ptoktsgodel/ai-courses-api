@@ -32,8 +32,7 @@ public static class PaymentsSeeder
             return;
         }
 
-        // --- Seed types ---
-        var typeNames = new[] { "Rent", "UtilityBills", "Taxes", "Product", "Other", "Entertainment" };
+        var typeNames = new[] { "Product", "Other", "Entertainment" };
         var types = typeNames.Select(name => new TypeEntity
         {
             Id = Guid.NewGuid(),
@@ -44,68 +43,95 @@ public static class PaymentsSeeder
         await db.Types.AddRangeAsync(types);
         await db.SaveChangesAsync();
 
-        TypeEntity TypeByName(string name) => types.First(t => t.Name == name);
+        var rng = new Random(42);
 
-        // --- Build schedule ---
-        // Fixed days
-        var schedule = new List<(int Day, (string TypeName, decimal Amount)[] Payments)>
-        {
-            (10, [("Rent", 3500m), ("UtilityBills", 1500m)]),
-            (20, [("Taxes", 5000m)])
-        };
+        var allItems = new List<ItemEntity>();
 
-        // Pick random days for variable entries (max 15, excludes fixed days)
-        var rng = new Random();
-        var fixedDays = new HashSet<int> { 10, 20 };
-        var availableDays = Enumerable.Range(1, 31).Where(d => !fixedDays.Contains(d)).ToList();
-        var randomDays = availableDays.OrderBy(_ => rng.Next()).Take(15).OrderBy(d => d).ToList();
+        // February 2026 — all spent
+        allItems.AddRange(BuildMonthItems(userId, types, 2026, 2, rng, allPlanned: false, allSpent: true));
+        // March 2026 — Product/Other = planned, Entertainment = spent
+        allItems.AddRange(BuildMonthItems(userId, types, 2026, 3, rng, allPlanned: false, allSpent: false));
+        // April 2026 — all planned
+        allItems.AddRange(BuildMonthItems(userId, types, 2026, 4, rng, allPlanned: true, allSpent: false));
 
-        // Entertainment: exactly 3 random days with fixed spent amounts (no planned amount)
-        var entertainmentAmounts = new[] { 500m, 700m, 1000m };
-        var entertainmentDays = randomDays.Take(3).ToList();
-        foreach (var (day, spent) in entertainmentDays.Zip(entertainmentAmounts))
-            schedule.Add((day, [("Entertainment", spent)]));
-
-        // Remaining 12 days: Other or Product with random planned amounts
-        var otherProductTypes = new[] { "Other", "Product" };
-        var otherProductAmounts = new Dictionary<string, (decimal Min, decimal Max)>
-        {
-            ["Other"]   = (30m,  100m),
-            ["Product"] = (100m, 300m)
-        };
-        foreach (var day in randomDays.Skip(3))
-        {
-            var typeName = otherProductTypes[rng.Next(otherProductTypes.Length)];
-            var (min, max) = otherProductAmounts[typeName];
-            var amount = Math.Round(min + (decimal)rng.NextDouble() * (max - min), 2);
-            schedule.Add((day, [(typeName, amount)]));
-        }
-
-        schedule = [.. schedule.OrderBy(s => s.Day)];
-
-        var items = schedule.Select(entry =>
-        {
-            var item = new ItemEntity
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                Date = new DateTime(2026, 3, entry.Day, 0, 0, 0, DateTimeKind.Utc),
-                Payments = entry.Payments.Select(p => new PaymentEntity
-                {
-                    Id = Guid.NewGuid(),
-                    TypeId = TypeByName(p.TypeName).Id,
-                    PlannedAmount = p.TypeName == "Entertainment" ? null : p.Amount,
-                    SpentAmount   = p.TypeName == "Entertainment" ? p.Amount : null
-                }).ToList()
-            };
-            return item;
-        }).ToList();
-
-        await db.Items.AddRangeAsync(items);
+        await db.Items.AddRangeAsync(allItems);
         await db.SaveChangesAsync();
 
         logger.LogInformation("Payments seed data applied: {ItemCount} items, {PaymentCount} payments.",
-            items.Count,
-            items.Sum(i => i.Payments.Count));
+            allItems.Count,
+            allItems.Sum(i => i.Payments.Count));
     }
+
+    // Schedule rules:
+    //   Product      — every 3rd day  — planned 50–200
+    //   Other        — every 6th day  — planned 30–50
+    //   Entertainment — days 5,10,15,20,25 — spent 250–1000
+    //
+    // allPlanned: override all payments to PlannedAmount   (April)
+    // allSpent  : override all payments to SpentAmount     (February)
+    // neither   : Product/Other → planned, Entertainment → spent  (March)
+    private static List<ItemEntity> BuildMonthItems(
+        Guid userId,
+        List<TypeEntity> types,
+        int year,
+        int month,
+        Random rng,
+        bool allPlanned,
+        bool allSpent)
+    {
+        TypeEntity TypeByName(string name) => types.First(t => t.Name == name);
+
+        var daysInMonth = DateTime.DaysInMonth(year, month);
+
+        var productDays       = Enumerable.Range(1, daysInMonth).Where(d => d % 3 == 0);
+        var otherDays         = Enumerable.Range(1, daysInMonth).Where(d => d % 6 == 0);
+        var entertainmentDays = new[] { 5, 10, 15, 20, 25 }.Where(d => d <= daysInMonth);
+
+        // Collect payments per day (multiple types can share the same day)
+        var dayPayments = new Dictionary<int, List<(TypeEntity Type, decimal Amount, bool IsEntertainment)>>();
+
+        void Add(int day, TypeEntity type, decimal amount, bool isEnt = false)
+        {
+            if (!dayPayments.TryGetValue(day, out var list))
+                dayPayments[day] = list = [];
+            list.Add((type, amount, isEnt));
+        }
+
+        foreach (var day in productDays)
+            Add(day, TypeByName("Product"), Rnd(rng, 50m, 200m));
+
+        foreach (var day in otherDays)
+            Add(day, TypeByName("Other"), Rnd(rng, 30m, 50m));
+
+        foreach (var day in entertainmentDays)
+            Add(day, TypeByName("Entertainment"), Rnd(rng, 250m, 1000m), isEnt: true);
+
+        return [.. dayPayments
+            .OrderBy(kv => kv.Key)
+            .Select(kv =>
+            {
+                var payments = kv.Value.Select(p =>
+                {
+                    var usePlanned = allPlanned || (!allSpent && !p.IsEntertainment);
+                    return new PaymentEntity
+                    {
+                        Id            = Guid.NewGuid(),
+                        TypeId        = p.Type.Id,
+                        PlannedAmount = usePlanned ? p.Amount : null,
+                        SpentAmount   = usePlanned ? null : p.Amount
+                    };
+                }).ToList();
+
+                return new ItemEntity
+                {
+                    Id       = Guid.NewGuid(),
+                    UserId   = userId,
+                    Date     = new DateTime(year, month, kv.Key, 0, 0, 0, DateTimeKind.Utc),
+                    Payments = payments
+                };
+            })];
+    }
+
+    private static decimal Rnd(Random rng, decimal min, decimal max)
+        => Math.Round(min + (decimal)rng.NextDouble() * (max - min), 2);
 }

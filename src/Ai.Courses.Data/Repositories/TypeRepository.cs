@@ -8,6 +8,13 @@ namespace Ai.Courses.Data.Repositories;
 
 public class TypeRepository(PaymentDbContext db) : ITypeRepository
 {
+    public async Task<IEnumerable<TypeEntity>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken)
+        => await db.Types
+            .Where(t => t.UserId == userId)
+            .OrderBy(t => t.Name)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
     public async Task<TypeEntity?> FindByNameAsync(Guid userId, string name, CancellationToken cancellationToken)
         => await db.Types
             .FirstOrDefaultAsync(t => t.UserId == userId && t.Name == name, cancellationToken);

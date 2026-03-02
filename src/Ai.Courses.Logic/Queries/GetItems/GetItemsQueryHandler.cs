@@ -10,7 +10,7 @@ public class GetItemsQueryHandler(IItemRepository itemRepository, IMapper mapper
 {
     public async Task<IEnumerable<ItemDto>> Handle(GetItemsQuery request, CancellationToken cancellationToken)
     {
-        var items = await itemRepository.GetAllByUserIdAsync(request.UserId, cancellationToken);
+        var items = await itemRepository.GetAllByUserIdAsync(request.UserId, request.DateFrom, request.DateTo, cancellationToken);
         return mapper.Map<IEnumerable<ItemDto>>(items);
     }
 }

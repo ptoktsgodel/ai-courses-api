@@ -15,16 +15,14 @@ public class DeletePaymentCommandHandler(
         if (payment is null)
             return false;
 
+        var item = payment.Item;
+
         await paymentRepository.DeleteAsync(payment, cancellationToken);
 
         var remainingPayments = await paymentRepository.CountByItemIdAsync(request.ItemId, cancellationToken);
 
-        if (remainingPayments == 0)
-        {
-            var item = await itemRepository.GetByIdAsync(request.ItemId, request.UserId, cancellationToken);
-            if (item is not null)
-                await itemRepository.DeleteAsync(item, cancellationToken);
-        }
+        if (remainingPayments == 0 && item is not null)
+            await itemRepository.DeleteAsync(item, cancellationToken);
 
         return true;
     }

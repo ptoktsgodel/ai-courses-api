@@ -9,6 +9,7 @@ public class UserProfile : Profile
     public UserProfile()
     {
         CreateMap<UserEntity, UserDto>();
-        CreateMap<UserDto, UserEntity>();
+        CreateMap<UserDto, UserEntity>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore());
     }
 }

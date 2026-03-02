@@ -8,10 +8,10 @@ namespace Ai.Courses.Data.Repositories;
 
 public class ItemRepository(PaymentDbContext db) : IItemRepository
 {
-    public async Task<IEnumerable<ItemEntity>> GetAllByUserIdAsync(Guid userId, CancellationToken cancellationToken)
+    public async Task<IEnumerable<ItemEntity>> GetAllByUserIdAsync(Guid userId, DateTime dateFrom, DateTime dateTo, CancellationToken cancellationToken)
         => await db.Items
             .AsNoTracking()
-            .Where(i => i.UserId == userId)
+            .Where(i => i.UserId == userId && i.Date >= dateFrom && i.Date <= dateTo)
             .Include(i => i.Payments)
                 .ThenInclude(p => p.Type)
             .OrderBy(i => i.Date)

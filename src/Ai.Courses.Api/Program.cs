@@ -1,5 +1,6 @@
 using Ai.Courses.Api.Endpoints.Auth;
 using Ai.Courses.Api.Endpoints.Items;
+using Ai.Courses.Api.Endpoints.Users;
 using Ai.Courses.Api.Extensions;
 using Ai.Courses.Data;
 using Ai.Courses.Data.Contexts;
@@ -51,5 +52,6 @@ await app.RunMigrationsAsync();
 // Endpoints
 app.MapAuthEndpoints();
 app.MapItemEndpoints();
+app.MapUserEndpoints();
 
 app.Run();
